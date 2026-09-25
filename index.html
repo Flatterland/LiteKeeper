@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LiteKeeper — 3D Lighting Techniques Comparison Demo</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💡</text></svg>">
+  <script type="module" crossorigin src="./assets/index-DGypFx1x.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CRzDri_7.css">
+</head>
+<body>
+  <!-- 3D WebGL Canvas Container -->
+  <div id="canvasContainer"></div>
+
+  <!-- Top Navigation & Controls Header -->
+  <header class="top-bar glass-panel">
+    <div class="brand">
+      <span class="brand-icon">⚡</span>
+      <div>
+        <span class="brand-title">LiteKeeper</span>
+        <span class="brand-sub">Illumination Lab</span>
+      </div>
+    </div>
+
+    <!-- Technique Selector Tabs -->
+    <nav class="tech-nav">
+      <button class="tech-btn active" data-tech="flat">Flat</button>
+      <button class="tech-btn" data-tech="gouraud">Gouraud</button>
+      <button class="tech-btn" data-tech="phong">Phong</button>
+      <button class="tech-btn" data-tech="vct">Voxel Cone Tracing</button>
+      <button class="tech-btn" data-tech="raytracing">Ray Tracing</button>
+    </nav>
+
+    <!-- Top Action Buttons -->
+    <div class="top-actions">
+      <select id="meshSelect" class="select-control" title="Change Central Mesh">
+        <option value="torusKnot">Torus Knot</option>
+        <option value="facetedSphere">Low-Poly Sphere (Facet/Tess)</option>
+        <option value="smoothSphere">Smooth Sphere</option>
+        <option value="cube">Cube</option>
+        <option value="cylinder">Cylinder</option>
+      </select>
+
+      <button id="wipeToggleBtn" class="action-btn" title="Split Screen Wipe Comparison">
+        <span>◩</span> Wipe Compare
+      </button>
+
+      <button id="diagramToggleBtn" class="action-btn active" title="Toggle 3D Diagram Overlay">
+        <span>📐</span> 3D Diagram
+      </button>
+
+      <button id="resetCamBtn" class="action-btn" title="Reset Camera Orientation">
+        <span>↺</span> Reset View
+      </button>
+    </div>
+  </header>
+
+  <!-- Wipe Comparison Selector Bar (visible in compare mode) -->
+  <div id="wipeControls" class="wipe-bar glass-panel hidden">
+    <span class="wipe-tag left">Left Technique:</span>
+    <select id="leftTechSelect" class="select-control">
+      <option value="flat">Flat</option>
+      <option value="gouraud" selected>Gouraud</option>
+      <option value="phong">Phong</option>
+      <option value="vct">Voxel Cone Tracing</option>
+      <option value="raytracing">Ray Tracing</option>
+    </select>
+
+    <span class="wipe-vs">VS</span>
+
+    <span class="wipe-tag right">Right Technique:</span>
+    <select id="rightTechSelect" class="select-control">
+      <option value="flat">Flat</option>
+      <option value="gouraud">Gouraud</option>
+      <option value="phong" selected>Phong</option>
+      <option value="vct">Voxel Cone Tracing</option>
+      <option value="raytracing">Ray Tracing</option>
+    </select>
+  </div>
+
+  <!-- Left Sidebar HUD (Technique Tuning & Debug Passes) -->
+  <aside class="left-hud glass-panel">
+    <!-- Debug Phase Dropdown -->
+    <div class="hud-section">
+      <div class="section-title">
+        <span>🔍</span> Debug Pass / Phase
+      </div>
+      <select id="debugPassSelect" class="select-control">
+        <!-- Dynamically populated based on active technique -->
+      </select>
+    </div>
+
+    <!-- Dynamic Sliders Section -->
+    <div class="hud-section">
+      <div class="section-title">
+        <span>⚙️</span> Technique Parameters
+      </div>
+      <div id="dynamicSliders" class="dynamic-sliders">
+        <!-- Injected dynamically per technique -->
+      </div>
+    </div>
+
+    <!-- 3D Interactive Light Controls -->
+    <div class="hud-section">
+      <div class="section-title">
+        <span>💡</span> 3D Light Source
+      </div>
+      <div class="light-hint">
+        ✨ <strong>Tip:</strong> Click & drag the glowing yellow light bulb directly in the 3D scene with your mouse or touch!
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <label>Light Color</label>
+        </div>
+        <input type="color" id="lightColorInput" value="#fff5e0" style="width: 100%; height: 32px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: transparent; cursor: pointer;">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <label>Light Intensity</label>
+          <span id="lightIntensityVal" class="slider-val">1.8</span>
+        </div>
+        <input type="range" id="lightIntensitySlider" min="0.2" max="4.0" step="0.1" value="1.8">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <label>Position X</label>
+          <span id="lightPosXVal" class="slider-val">1.8</span>
+        </div>
+        <input type="range" id="lightPosX" min="-2.5" max="2.5" step="0.1" value="1.8">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <label>Position Y</label>
+          <span id="lightPosYVal" class="slider-val">3.2</span>
+        </div>
+        <input type="range" id="lightPosY" min="-0.5" max="4.2" step="0.1" value="3.2">
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <label>Position Z</label>
+          <span id="lightPosZVal" class="slider-val">1.4</span>
+        </div>
+        <input type="range" id="lightPosZ" min="-2.5" max="2.5" step="0.1" value="1.4">
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Floating Educational Theory Card -->
+  <aside class="right-card glass-panel">
+    <div id="theoryTitle" class="card-title">Flat Shading</div>
+    <div id="theoryContent" class="card-body">
+      <!-- Injected dynamically -->
+    </div>
+  </aside>
+
+  <!-- Main JavaScript App Entrypoint -->
+</body>
+</html>
