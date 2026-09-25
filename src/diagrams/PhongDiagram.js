@@ -5,7 +5,7 @@ export class PhongDiagram {
     this.group = new THREE.Group();
     this.group.name = "PhongDiagram";
 
-    this.origin = new THREE.Vector3(1.2, 1.1, 0.4);
+    this.origin = new THREE.Vector3(0.0, 1.35, 0.2);
     this.group.position.copy(this.origin);
 
     this.initGeometry();
@@ -75,8 +75,8 @@ export class PhongDiagram {
 
     const spriteMat = new THREE.SpriteMaterial({ map: this.labelTexture, transparent: true });
     this.labelSprite = new THREE.Sprite(spriteMat);
-    this.labelSprite.position.set(0, -0.65, 0);
-    this.labelSprite.scale.set(1.35, 0.68, 1.0);
+    this.labelSprite.position.set(0, -0.7, 0);
+    this.labelSprite.scale.set(1.4, 0.7, 1.0);
     this.group.add(this.labelSprite);
   }
 

@@ -7,7 +7,6 @@ import { UIManager } from './ui/UIManager.js';
 
 class LiteKeeperApp {
   constructor() {
-    // Read URL search params for testing / deep linking
     const params = new URLSearchParams(window.location.search);
 
     this.currentTechnique = params.get('tech') || 'flat';
@@ -16,7 +15,7 @@ class LiteKeeperApp {
 
     const canvasContainer = document.getElementById('canvasContainer');
 
-    // 1. Scene Manager
+    // 1. Scene Manager (Unified Cornell Scene: Room + Cone + Sphere + Cube)
     this.sceneManager = new SceneManager(canvasContainer);
 
     // 2. 3D Diagram Manager
@@ -67,17 +66,17 @@ class LiteKeeperApp {
       if (wipeControls) wipeControls.classList.remove('hidden');
     }
 
-    // Mesh selection
-    if (params.has('mesh')) {
-      this.sceneManager.setMeshType(params.get('mesh'));
-      const meshSel = document.getElementById('meshSelect');
-      if (meshSel) meshSel.value = params.get('mesh');
-    }
-
     // Gouraud subdivisions
     if (params.has('subdiv')) {
       const sub = parseInt(params.get('subdiv'), 10);
       this.sceneManager.setGouraudSubdivisions(sub);
+    }
+
+    // Camera preset
+    if (params.has('view')) {
+      this.sceneManager.setCameraPreset(params.get('view'));
+      const viewSel = document.getElementById('viewSelect');
+      if (viewSel) viewSel.value = params.get('view');
     }
 
     // 5. UI Manager
@@ -98,17 +97,13 @@ class LiteKeeperApp {
       if (passSel) passSel.value = pass;
     }
 
-    // Frame tracking
     this.clock = new THREE.Clock();
     this.frameCount = 0;
 
-    // Apply initial technique
     this.setTechnique(this.currentTechnique);
 
-    // Global hook for headless verification / console inspection
     window.__LITEKEEPER__ = this;
 
-    // Start loop
     this.animate = this.animate.bind(this);
     requestAnimationFrame(this.animate);
   }
@@ -145,19 +140,10 @@ class LiteKeeperApp {
   }
 
   setDebugPass(passIndex) {
-    const mat = this.sceneManager.materials[this.currentTechnique];
-    if (mat && mat.uniforms && mat.uniforms.uDebugPass) {
-      mat.uniforms.uDebugPass.value = passIndex;
-    }
+    this.sceneManager.setTechniqueUniform(this.currentTechnique, 'uDebugPass', passIndex);
     if (this.wipeComparator.enabled) {
-      const leftMat = this.sceneManager.materials[this.leftCompareTechnique];
-      if (leftMat && leftMat.uniforms && leftMat.uniforms.uDebugPass) {
-        leftMat.uniforms.uDebugPass.value = passIndex;
-      }
-      const rightMat = this.sceneManager.materials[this.rightCompareTechnique];
-      if (rightMat && rightMat.uniforms && rightMat.uniforms.uDebugPass) {
-        rightMat.uniforms.uDebugPass.value = passIndex;
-      }
+      this.sceneManager.setTechniqueUniform(this.leftCompareTechnique, 'uDebugPass', passIndex);
+      this.sceneManager.setTechniqueUniform(this.rightCompareTechnique, 'uDebugPass', passIndex);
     }
   }
 
@@ -173,9 +159,9 @@ class LiteKeeperApp {
 
     const diagOptions = {
       lightColor: this.lightController.color,
-      shininess: this.sceneManager.materials.phong.uniforms.uShininess.value,
-      coneCount: this.sceneManager.materials.vct.uniforms.uConeCount.value,
-      bounceCount: this.sceneManager.materials.raytracing.uniforms.uBounceCount.value
+      shininess: this.sceneManager.getTechniqueUniform('phong', 'uShininess') || 64.0,
+      coneCount: this.sceneManager.getTechniqueUniform('vct', 'uConeCount') || 5,
+      bounceCount: this.sceneManager.getTechniqueUniform('raytracing', 'uBounceCount') || 3
     };
     this.diagramManager.update(this.lightController.position, this.sceneManager.camera, elapsedTime, diagOptions);
 

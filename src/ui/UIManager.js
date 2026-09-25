@@ -2,9 +2,8 @@ export class UIManager {
   constructor(app) {
     this.app = app;
 
-    // References to DOM elements
     this.techniqueButtons = document.querySelectorAll('.tech-btn');
-    this.meshSelect = document.getElementById('meshSelect');
+    this.viewSelect = document.getElementById('viewSelect');
     this.wipeToggleBtn = document.getElementById('wipeToggleBtn');
     this.diagramToggleBtn = document.getElementById('diagramToggleBtn');
     this.resetCamBtn = document.getElementById('resetCamBtn');
@@ -14,12 +13,10 @@ export class UIManager {
     this.theoryTitle = document.getElementById('theoryTitle');
     this.theoryContent = document.getElementById('theoryContent');
 
-    // Wipe compare selectors
     this.wipeControls = document.getElementById('wipeControls');
     this.leftTechSelect = document.getElementById('leftTechSelect');
     this.rightTechSelect = document.getElementById('rightTechSelect');
 
-    // Light controls
     this.lightColorInput = document.getElementById('lightColorInput');
     this.lightIntensitySlider = document.getElementById('lightIntensitySlider');
     this.lightIntensityVal = document.getElementById('lightIntensityVal');
@@ -32,7 +29,6 @@ export class UIManager {
   }
 
   initEventListeners() {
-    // 1. Technique Selection Buttons
     this.techniqueButtons.forEach(btn => {
       btn.addEventListener('click', () => {
         const tech = btn.dataset.tech;
@@ -43,14 +39,12 @@ export class UIManager {
       });
     });
 
-    // 2. Mesh Selection
-    if (this.meshSelect) {
-      this.meshSelect.addEventListener('change', (e) => {
-        this.app.sceneManager.setMeshType(e.target.value);
+    if (this.viewSelect) {
+      this.viewSelect.addEventListener('change', (e) => {
+        this.app.sceneManager.setCameraPreset(e.target.value);
       });
     }
 
-    // 3. Wipe Compare Toggle
     if (this.wipeToggleBtn) {
       this.wipeToggleBtn.addEventListener('click', () => {
         const isEnabled = !this.app.wipeComparator.enabled;
@@ -62,7 +56,6 @@ export class UIManager {
       });
     }
 
-    // Left & Right compare selectors
     if (this.leftTechSelect) {
       this.leftTechSelect.addEventListener('change', (e) => {
         this.app.setLeftCompareTechnique(e.target.value);
@@ -74,7 +67,6 @@ export class UIManager {
       });
     }
 
-    // 4. Diagram Toggle
     if (this.diagramToggleBtn) {
       this.diagramToggleBtn.addEventListener('click', () => {
         const visible = !this.app.diagramManager.visible;
@@ -83,14 +75,13 @@ export class UIManager {
       });
     }
 
-    // 5. Reset Camera
     if (this.resetCamBtn) {
       this.resetCamBtn.addEventListener('click', () => {
         this.app.sceneManager.resetCamera();
+        if (this.viewSelect) this.viewSelect.value = 'overview';
       });
     }
 
-    // 6. Debug Pass Selection
     if (this.debugPassSelect) {
       this.debugPassSelect.addEventListener('change', (e) => {
         const passIndex = parseInt(e.target.value, 10);
@@ -98,7 +89,6 @@ export class UIManager {
       });
     }
 
-    // 7. Light Controls
     if (this.lightColorInput) {
       this.lightColorInput.addEventListener('input', (e) => {
         this.app.lightController.setColor(e.target.value);
@@ -113,7 +103,6 @@ export class UIManager {
       });
     }
 
-    // Light coordinate sliders
     const updateLightPosFromInputs = () => {
       const x = parseFloat(this.lightPosX.value);
       const y = parseFloat(this.lightPosY.value);
@@ -139,13 +128,8 @@ export class UIManager {
   }
 
   updateUIForTechnique(techKey) {
-    // 1. Populate Debug Pass Dropdown
     this.populateDebugDropdown(techKey);
-
-    // 2. Generate Technique-Specific Sliders
     this.generateSliders(techKey);
-
-    // 3. Update Educational Theory Card
     this.updateTheoryCard(techKey);
   }
 
@@ -243,87 +227,99 @@ export class UIManager {
       this.dynamicSlidersContainer.appendChild(row);
     };
 
-    const mats = this.app.sceneManager.materials;
+    const sm = this.app.sceneManager;
 
     if (techKey === 'flat') {
-      const mat = mats.flat;
-      createSliderRow('flatRoughness', 'Facet Roughness', 0.0, 1.0, 0.05, mat.uniforms.uRoughness.value, v => {
-        mat.uniforms.uRoughness.value = v;
+      const roughness = sm.getTechniqueUniform('flat', 'uRoughness') ?? 0.5;
+      const ambient = sm.getTechniqueUniform('flat', 'uAmbientIntensity') ?? 0.3;
+      createSliderRow('flatRoughness', 'Facet Roughness', 0.0, 1.0, 0.05, roughness, v => {
+        sm.setTechniqueUniform('flat', 'uRoughness', v);
       });
-      createSliderRow('flatAmbient', 'Ambient Intensity', 0.0, 1.0, 0.05, mat.uniforms.uAmbientIntensity.value, v => {
-        mat.uniforms.uAmbientIntensity.value = v;
+      createSliderRow('flatAmbient', 'Ambient Intensity', 0.0, 1.0, 0.05, ambient, v => {
+        sm.setTechniqueUniform('flat', 'uAmbientIntensity', v);
       });
     } else if (techKey === 'gouraud') {
-      const mat = mats.gouraud;
-      // Subdivision slider: crucial to show how tessellation resolves Gouraud's artifacts!
-      createSliderRow('gouraudSubdiv', 'Mesh Subdivisions (Tessellation)', 0, 4, 1, this.app.sceneManager.gouraudSubdivisions, v => {
-        this.app.sceneManager.setGouraudSubdivisions(v);
+      createSliderRow('gouraudSubdiv', 'Mesh Subdivisions (Tessellation)', 0, 4, 1, sm.subdivisions, v => {
+        sm.setGouraudSubdivisions(v);
       });
-      createSliderRow('gouraudShininess', 'Specular Shininess', 4, 128, 4, mat.uniforms.uShininess.value, v => {
-        mat.uniforms.uShininess.value = v;
-        if (this.app.diagramManager.diagrams.gouraud) {
-          this.app.diagramManager.diagrams.gouraud.shininess = v;
-        }
+      const shininess = sm.getTechniqueUniform('gouraud', 'uShininess') ?? 32;
+      createSliderRow('gouraudShininess', 'Specular Shininess', 4, 128, 4, shininess, v => {
+        sm.setTechniqueUniform('gouraud', 'uShininess', v);
       });
-      createSliderRow('gouraudSpecInt', 'Specular Intensity', 0.0, 2.5, 0.1, mat.uniforms.uSpecularIntensity.value, v => {
-        mat.uniforms.uSpecularIntensity.value = v;
+      const specInt = sm.getTechniqueUniform('gouraud', 'uSpecularIntensity') ?? 1.0;
+      createSliderRow('gouraudSpecInt', 'Specular Intensity', 0.0, 2.5, 0.1, specInt, v => {
+        sm.setTechniqueUniform('gouraud', 'uSpecularIntensity', v);
       });
-      createSliderRow('gouraudAmbient', 'Ambient Intensity', 0.0, 1.0, 0.05, mat.uniforms.uAmbientIntensity.value, v => {
-        mat.uniforms.uAmbientIntensity.value = v;
+      const ambient = sm.getTechniqueUniform('gouraud', 'uAmbientIntensity') ?? 0.3;
+      createSliderRow('gouraudAmbient', 'Ambient Intensity', 0.0, 1.0, 0.05, ambient, v => {
+        sm.setTechniqueUniform('gouraud', 'uAmbientIntensity', v);
       });
     } else if (techKey === 'phong') {
-      const mat = mats.phong;
-      createSliderRow('phongShininess', 'Specular Power (Shininess)', 4, 256, 4, mat.uniforms.uShininess.value, v => {
-        mat.uniforms.uShininess.value = v;
+      const shininess = sm.getTechniqueUniform('phong', 'uShininess') ?? 64;
+      createSliderRow('phongShininess', 'Specular Power (Shininess)', 4, 256, 4, shininess, v => {
+        sm.setTechniqueUniform('phong', 'uShininess', v);
       });
-      createSliderRow('phongSpecInt', 'Specular Intensity', 0.0, 3.0, 0.1, mat.uniforms.uSpecularIntensity.value, v => {
-        mat.uniforms.uSpecularIntensity.value = v;
+      const specInt = sm.getTechniqueUniform('phong', 'uSpecularIntensity') ?? 1.2;
+      createSliderRow('phongSpecInt', 'Specular Intensity', 0.0, 3.0, 0.1, specInt, v => {
+        sm.setTechniqueUniform('phong', 'uSpecularIntensity', v);
       });
-      createSliderRow('phongDiffInt', 'Diffuse Intensity', 0.0, 2.0, 0.1, mat.uniforms.uDiffuseIntensity.value, v => {
-        mat.uniforms.uDiffuseIntensity.value = v;
+      const diffInt = sm.getTechniqueUniform('phong', 'uDiffuseIntensity') ?? 1.0;
+      createSliderRow('phongDiffInt', 'Diffuse Intensity', 0.0, 2.0, 0.1, diffInt, v => {
+        sm.setTechniqueUniform('phong', 'uDiffuseIntensity', v);
       });
-      createSliderRow('phongDecay', 'Light Attenuation Falloff', 0.0, 1.0, 0.05, mat.uniforms.uLightDecay.value, v => {
-        mat.uniforms.uLightDecay.value = v;
+      const decay = sm.getTechniqueUniform('phong', 'uLightDecay') ?? 0.5;
+      createSliderRow('phongDecay', 'Light Attenuation Falloff', 0.0, 1.0, 0.05, decay, v => {
+        sm.setTechniqueUniform('phong', 'uLightDecay', v);
       });
-      createToggleRow('phongBlinnToggle', 'Use Blinn-Phong Model (Halfway H)', mat.uniforms.uIsBlinn.value === 1, checked => {
-        mat.uniforms.uIsBlinn.value = checked ? 1 : 0;
+      const isBlinn = (sm.getTechniqueUniform('phong', 'uIsBlinn') ?? 1) === 1;
+      createToggleRow('phongBlinnToggle', 'Use Blinn-Phong Model (Halfway H)', isBlinn, checked => {
+        sm.setTechniqueUniform('phong', 'uIsBlinn', checked ? 1 : 0);
       });
     } else if (techKey === 'vct') {
-      const mat = mats.vct;
-      createSliderRow('vctConeCount', 'Diffuse Cones Count', 1, 9, 1, mat.uniforms.uConeCount.value, v => {
-        mat.uniforms.uConeCount.value = v;
+      const coneCount = sm.getTechniqueUniform('vct', 'uConeCount') ?? 5;
+      createSliderRow('vctConeCount', 'Diffuse Cones Count', 1, 9, 1, coneCount, v => {
+        sm.setTechniqueUniform('vct', 'uConeCount', v);
       });
-      createSliderRow('vctAperture', 'Cone Aperture Angle (tan α/2)', 0.15, 1.0, 0.05, mat.uniforms.uConeAperture.value, v => {
-        mat.uniforms.uConeAperture.value = v;
+      const aperture = sm.getTechniqueUniform('vct', 'uConeAperture') ?? 0.577;
+      createSliderRow('vctAperture', 'Cone Aperture Angle (tan α/2)', 0.15, 1.0, 0.05, aperture, v => {
+        sm.setTechniqueUniform('vct', 'uConeAperture', v);
       });
-      createSliderRow('vctResolution', 'Voxel Resolution', 16, 64, 16, mat.uniforms.uVoxelResolution.value, v => {
-        mat.uniforms.uVoxelResolution.value = v;
+      const res = sm.getTechniqueUniform('vct', 'uVoxelResolution') ?? 32;
+      createSliderRow('vctResolution', 'Voxel Resolution', 16, 64, 16, res, v => {
+        sm.setTechniqueUniform('vct', 'uVoxelResolution', v);
       });
-      createSliderRow('vctGiBoost', 'Indirect GI Color Bleed', 0.0, 3.0, 0.1, mat.uniforms.uGiBoost.value, v => {
-        mat.uniforms.uGiBoost.value = v;
+      const gi = sm.getTechniqueUniform('vct', 'uGiBoost') ?? 1.5;
+      createSliderRow('vctGiBoost', 'Indirect GI Color Bleed', 0.0, 3.0, 0.1, gi, v => {
+        sm.setTechniqueUniform('vct', 'uGiBoost', v);
       });
-      createSliderRow('vctRoughness', 'Specular Cone Roughness', 0.02, 0.8, 0.02, mat.uniforms.uSpecularRoughness.value, v => {
-        mat.uniforms.uSpecularRoughness.value = v;
+      const rough = sm.getTechniqueUniform('vct', 'uSpecularRoughness') ?? 0.15;
+      createSliderRow('vctRoughness', 'Specular Cone Roughness', 0.02, 0.8, 0.02, rough, v => {
+        sm.setTechniqueUniform('vct', 'uSpecularRoughness', v);
       });
-      createSliderRow('vctAoFactor', 'Voxel Ambient Occlusion', 0.0, 2.0, 0.1, mat.uniforms.uAoFactor.value, v => {
-        mat.uniforms.uAoFactor.value = v;
+      const ao = sm.getTechniqueUniform('vct', 'uAoFactor') ?? 1.0;
+      createSliderRow('vctAoFactor', 'Voxel Ambient Occlusion', 0.0, 2.0, 0.1, ao, v => {
+        sm.setTechniqueUniform('vct', 'uAoFactor', v);
       });
     } else if (techKey === 'raytracing') {
-      const mat = mats.raytracing;
-      createSliderRow('rtBounces', 'Ray Bounce Count', 1, 4, 1, mat.uniforms.uBounceCount.value, v => {
-        mat.uniforms.uBounceCount.value = v;
+      const bounces = sm.getTechniqueUniform('raytracing', 'uBounceCount') ?? 3;
+      createSliderRow('rtBounces', 'Ray Bounce Count', 1, 4, 1, bounces, v => {
+        sm.setTechniqueUniform('raytracing', 'uBounceCount', v);
       });
-      createSliderRow('rtSamples', 'Samples Per Pixel (Taps)', 1, 16, 1, mat.uniforms.uSamplesPerPixel.value, v => {
-        mat.uniforms.uSamplesPerPixel.value = v;
+      const samples = sm.getTechniqueUniform('raytracing', 'uSamplesPerPixel') ?? 4;
+      createSliderRow('rtSamples', 'Samples Per Pixel (Taps)', 1, 16, 1, samples, v => {
+        sm.setTechniqueUniform('raytracing', 'uSamplesPerPixel', v);
       });
-      createSliderRow('rtRoughness', 'Surface Roughness', 0.0, 1.0, 0.05, mat.uniforms.uRoughness.value, v => {
-        mat.uniforms.uRoughness.value = v;
+      const rough = sm.getTechniqueUniform('raytracing', 'uRoughness') ?? 0.15;
+      createSliderRow('rtRoughness', 'Surface Roughness', 0.0, 1.0, 0.05, rough, v => {
+        sm.setTechniqueUniform('raytracing', 'uRoughness', v);
       });
-      createSliderRow('rtShadowSoft', 'Light Radius (Soft Shadows)', 0.05, 0.6, 0.05, mat.uniforms.uLightRadius.value, v => {
-        mat.uniforms.uLightRadius.value = v;
+      const shadowRad = sm.getTechniqueUniform('raytracing', 'uLightRadius') ?? 0.22;
+      createSliderRow('rtShadowSoft', 'Light Radius (Soft Shadows)', 0.05, 0.6, 0.05, shadowRad, v => {
+        sm.setTechniqueUniform('raytracing', 'uLightRadius', v);
       });
-      createSliderRow('rtMaxDist', 'Max Ray Distance', 5.0, 30.0, 1.0, mat.uniforms.uMaxDistance.value, v => {
-        mat.uniforms.uMaxDistance.value = v;
+      const maxDist = sm.getTechniqueUniform('raytracing', 'uMaxDistance') ?? 20.0;
+      createSliderRow('rtMaxDist', 'Max Ray Distance', 5.0, 30.0, 1.0, maxDist, v => {
+        sm.setTechniqueUniform('raytracing', 'uMaxDistance', v);
       });
     }
   }
@@ -336,57 +332,54 @@ export class UIManager {
         title: 'Flat Shading',
         body: `
           <div class="theory-equation"><i>I</i> = <i>k</i><sub>a</sub><i>I</i><sub>a</sub> + <i>k</i><sub>d</sub> max(0, <b>N</b><sub>face</sub> &middot; <b>L</b>) <i>I</i><sub>d</sub></div>
-          <p><strong>Mechanism:</strong> A single surface normal is calculated for each polygonal face. Illumination is evaluated once per polygon and painted uniformly across its area.</p>
+          <p><strong>Mechanism:</strong> A single surface normal is calculated per geometric polygon. Illumination is evaluated once per face and rendered uniformly across the facet.</p>
           <ul>
-            <li><strong>Pros:</strong> Extremely low computational cost; iconic retro aesthetic.</li>
-            <li><strong>Cons:</strong> Sharp facet boundaries; cannot represent smooth curvature regardless of lighting resolution.</li>
-            <li><strong>3D Diagram:</strong> Notice the single cyan normal vector <b>N</b> at the triangle centroid with uniform color disc.</li>
+            <li><strong>Scene Comparison:</strong> Notice how the <em>Sphere</em> and <em>Cone</em> reveal prominent faceted planar bands, while the <em>Cube</em> looks identical to higher models due to its planar geometry.</li>
+            <li><strong>Pros/Cons:</strong> Instantaneous rendering, but unable to represent smooth curvatures.</li>
           </ul>
         `
       },
       gouraud: {
         title: 'Gouraud Shading (1971)',
         body: `
-          <div class="theory-equation"><i>C</i><sub>pixel</sub> = <i>u</i><i>C</i><sub>V0</sub> + <i>v</i><i>C</i><sub>V1</sub> + <i>w</i><i>C</i><sub>V2</sub></div>
-          <p><strong>Mechanism:</strong> Lighting equations are computed <em>strictly at the mesh vertices</em> in the vertex shader. The rasterizer then linearly interpolates the resulting RGB colors across each triangle.</p>
+          <div class="theory-equation"><i>C</i><sub>pixel</sub> = <i>u</i> <i>C</i><sub>V0</sub> + <i>v</i> <i>C</i><sub>V1</sub> + <i>w</i> <i>C</i><sub>V2</sub></div>
+          <p><strong>Mechanism:</strong> Lighting is evaluated <em>strictly at vertices</em> in the vertex shader. The GPU rasterizer linearly interpolates vertex colors across triangle interiors.</p>
           <ul>
-            <li><strong>Pros:</strong> Smooth appearance at vertex-only calculation overhead.</li>
-            <li><strong>Artifacts:</strong> Mach banding; highlights in the middle of polygons disappear if vertices don't catch the reflection cone!</li>
-            <li><strong>Experiment:</strong> Adjust the <em>Mesh Subdivisions</em> slider above to see how tessellation mitigates Gouraud artifacts!</li>
+            <li><strong>Interactive Experiment:</strong> Drag the <strong>Mesh Subdivisions</strong> slider above! At low tessellation, highlights across the Sphere and Cone vanish because vertices miss the specular peak.</li>
+            <li><strong>Artifacts:</strong> Mach banding and clipped specular highlights inside polygon centers.</li>
           </ul>
         `
       },
       phong: {
         title: 'Phong / Blinn-Phong Shading (1975)',
         body: `
-          <div class="theory-equation"><i>I</i> = <i>k</i><sub>a</sub><i>I</i><sub>a</sub> + <i>k</i><sub>d</sub>(<b>N</b> &middot; <b>L</b>)<i>I</i><sub>d</sub> + <i>k</i><sub>s</sub>(<b>R</b> &middot; <b>V</b>)<sup><i>s</i></sup><i>I</i><sub>s</sub></div>
-          <p><strong>Mechanism:</strong> Normal vectors are smoothly interpolated across the polygon surface, and the full illumination equation is evaluated <em>independently per pixel</em> in the fragment shader.</p>
+          <div class="theory-equation"><i>I</i> = <i>k</i><sub>a</sub><i>I</i><sub>a</sub> + <i>k</i><sub>d</sub>(<b>N</b> &middot; <b>L</b>)<i>I</i><sub>d</sub> + <i>k</i><sub>s</sub>(<b>R</b> &middot; <b>V</b>)<sup>s</sup><i>I</i><sub>s</sub></div>
+          <p><strong>Mechanism:</strong> Normal vectors are smoothly interpolated per pixel, and the complete illumination equation is computed per fragment.</p>
           <ul>
-            <li><strong>Pros:</strong> Crisp, realistic specular highlights; eliminates polygon facet artifacts.</li>
-            <li><strong>Blinn-Phong variant:</strong> Uses the halfway vector <b>H</b> = (<b>L</b> + <b>V</b>) / ||<b>L</b> + <b>V</b>||, avoiding reflection recalculation.</li>
-            <li><strong>3D Diagram:</strong> Observe the 3D translucent specular cone lobe around reflection vector <b>R</b>!</li>
+            <li><strong>Scene Behavior:</strong> Produces smooth, continuous specular glints on the Sphere and Cone regardless of triangle size.</li>
+            <li><strong>Blinn-Phong variant:</strong> Uses the halfway vector <b>H</b> = (<b>L</b> + <b>V</b>) / &Vert;<b>L</b> + <b>V</b>&Vert; for faster computation.</li>
           </ul>
         `
       },
       vct: {
         title: 'Voxel Cone Tracing (VCT)',
         body: `
-          <div class="theory-equation"><i>C</i><sub>accum</sub> += (1 - &alpha;) &middot; <i>C</i><sub>voxel</sub>(LOD) &middot; &alpha;<sub>voxel</sub></div>
-          <p><strong>Mechanism:</strong> The 3D scene is voxelized into a hierarchical 3D radiance grid. From surface hit points, wide cones are marched through the voxel grid, sampling wider LODs as distance increases.</p>
+          <div class="theory-equation"><i>C</i><sub>accum</sub> += (1 - &alpha;) <i>C</i><sub>voxel</sub>(LOD) &middot; &alpha;<sub>voxel</sub></div>
+          <p><strong>Mechanism:</strong> The Cornell room and models are voxelized into a 3D radiance field. Wide cones march through the voxel volume gathering indirect light.</p>
           <ul>
-            <li><strong>Capabilities:</strong> Real-time diffuse Global Illumination (red and green wall color bleeding), soft contact shadows (AO), and glossy specular reflections.</li>
-            <li><strong>3D Diagram:</strong> Displays 1 normal cone, 4 hemispherical cones, and 1 specular reflection cone stepping through voxel cells!</li>
+            <li><strong>Color Bleeding in the Scene:</strong> Look closely at the left of the Cube and Cone: they receive vibrant <em>Red indirect light</em> from the left wall! The right of the Sphere receives <em>Green indirect light</em> from the right wall!</li>
+            <li><strong>Ambient Occlusion:</strong> Contact shadows form naturally under the models where cones are heavily occluded by neighboring voxels.</li>
           </ul>
         `
       },
       raytracing: {
         title: 'Monte Carlo Ray / Path Tracing',
         body: `
-          <div class="theory-equation"><i>L</i><sub>o</sub>(<i>p</i>, <b>&omega;</b><sub>o</sub>) = <i>L</i><sub>e</sub> + &int;<sub>&Omega;</sub> <i>f</i><sub>r</sub>(<i>p</i>, <b>&omega;</b><sub>i</sub>, <b>&omega;</b><sub>o</sub>) <i>L</i><sub>i</sub>(<i>p</i>, <b>&omega;</b><sub>i</sub>) (<b>n</b> &middot; <b>&omega;</b><sub>i</sub>) d<b>&omega;</b><sub>i</sub></div>
-          <p><strong>Mechanism:</strong> Traces simulated light rays from the camera into the scene. Rays bounce across multiple surfaces, testing direct shadow occlusion and gathering indirect radiance.</p>
+          <div class="theory-equation"><i>L</i><sub>o</sub>(<i>p</i>, &omega;<sub>o</sub>) = <i>L</i><sub>e</sub> + &int; <i>f</i><sub>r</sub> &middot; <i>L</i><sub>i</sub> (<b>n</b> &middot; &omega;<sub>i</sub>) d&omega;<sub>i</sub></div>
+          <p><strong>Mechanism:</strong> Traces simulated light rays bouncing across the room, cube, sphere, cone, and walls with soft penumbra shadows and true global illumination.</p>
           <ul>
-            <li><strong>Capabilities:</strong> Physically accurate multi-bounce reflections, soft penumbra shadows, and full global illumination transport.</li>
-            <li><strong>Sliders:</strong> Increase <em>Bounce Count</em> to observe multi-bounce indirect light, and increase <em>Samples (Taps)</em> for cleaner integration!</li>
+            <li><strong>Exact Scene Alignment:</strong> The Ray Tracer models the <em>exact same Cube, Sphere, Cone, and Room</em> as the rasterizer, allowing perfect side-by-side split screen wipe comparisons!</li>
+            <li><strong>Bounces & Taps:</strong> Increase the <em>Bounce Count</em> slider to trace deeper indirect reflection paths.</li>
           </ul>
         `
       }
